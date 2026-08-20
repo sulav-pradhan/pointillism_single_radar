@@ -6,7 +6,9 @@
 import numpy as np 
 import os
 
-from comet_ml import Experiment
+# Comet ML is optional. Uncomment this import and the logging calls below if
+# experiment tracking is configured through COMET_API_KEY.
+# from comet_ml import Experiment
 from transforms3d import euler
 from scipy.spatial import ConvexHull
 
@@ -232,8 +234,8 @@ def non_max_suppression(boxes, confidence_scores, nBox, overlapThresh=0.7):
 if __name__ == '__main__':
 
 
-    experiment = Experiment(api_key="",
-                        project_name="", workspace="")
+    # experiment = Experiment(api_key="",
+    #                     project_name="", workspace="")
 
     #debt read ground truth labels
     classifier = Refinement(k=7)
@@ -242,7 +244,7 @@ if __name__ == '__main__':
 
     config = Config()
     
-    experiment.log_asset("config.py")
+    # experiment.log_asset("config.py")
 
     optimizer = optim.Adam(classifier.parameters(), lr=config.lr, weight_decay=0.00001)
     print("Total parameters:",sum(p.numel() for p in classifier.parameters()))
@@ -361,7 +363,7 @@ if __name__ == '__main__':
         print('Epoch %d training completed: total_loss: %f | total_rpn_loss: %f' % (epoch+1, total_loss/(batch+1),total_rpn_loss/(batch+1)))
 
 
-        experiment.log_metrics({'Loss/train': total_loss/(batch+1)}, step=epoch+1)
+        # experiment.log_metrics({'Loss/train': total_loss/(batch+1)}, step=epoch+1)
 
         total_loss_training.append(total_loss)
         total_rpn_loss_training.append(total_rpn_loss)
@@ -465,13 +467,13 @@ if __name__ == '__main__':
         print('max mAP', prev_recall)
 
 
-        experiment.log_metrics({'mAP/val': mAP}, step=epoch+1)
-        experiment.log_metrics({'mAP_01/val': mAP_01}, step=epoch+1)
-        experiment.log_metrics({'mAP_001/val': mAP_001}, step=epoch+1)
-        experiment.log_metrics({'TP/val': TP}, step=epoch+1)
-        experiment.log_metrics({'mis_detect/val': mis_detect}, step=epoch+1)
-        experiment.log_metrics({'Loss/val': total_loss_eval/(batch+1)}, step=epoch+1)
-        experiment.log_metrics({'mIoU_2d/val': total_mIoU_2d/(batch+1)}, step=epoch+1)
+        # experiment.log_metrics({'mAP/val': mAP}, step=epoch+1)
+        # experiment.log_metrics({'mAP_01/val': mAP_01}, step=epoch+1)
+        # experiment.log_metrics({'mAP_001/val': mAP_001}, step=epoch+1)
+        # experiment.log_metrics({'TP/val': TP}, step=epoch+1)
+        # experiment.log_metrics({'mis_detect/val': mis_detect}, step=epoch+1)
+        # experiment.log_metrics({'Loss/val': total_loss_eval/(batch+1)}, step=epoch+1)
+        # experiment.log_metrics({'mIoU_2d/val': total_mIoU_2d/(batch+1)}, step=epoch+1)
 
 
         if mAP>prev_recall:
