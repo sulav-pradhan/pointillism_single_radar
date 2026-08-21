@@ -267,7 +267,9 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss(weight = torch.tensor([1,2],dtype=torch.float32).cuda())
     mse_loss = nn.MSELoss()
     smoothl1_loss = nn.SmoothL1Loss(reduction='mean')
-    prev_recall = 0.0
+    # Track the highest validation mAP seen so far. Starting at -infinity
+    # guarantees that the first completed validation epoch is checkpointed.
+    best_map = float('-inf')
 
     nPoints  = config.npoints
     total_loss_training = []
@@ -464,7 +466,7 @@ if __name__ == '__main__':
         mAP_001, TP, mis_detect = get_mAP(np.array(confidence_save),np.array(iou2d_save),nms_idx_save,0.01)
         print('mAP:', mAP)
         print('0.4:', mAP_04, '0.3:',mAP_03,'0.2:',mAP_02, '0.1:',mAP_01,'0.01:',mAP_001)
-        print('max mAP', prev_recall)
+        print('best mAP so far', best_map)
 
 
         # experiment.log_metrics({'mAP/val': mAP}, step=epoch+1)
@@ -476,10 +478,29 @@ if __name__ == '__main__':
         # experiment.log_metrics({'mIoU_2d/val': total_mIoU_2d/(batch+1)}, step=epoch+1)
 
 
-        if mAP>prev_recall:
-            
-            print("Epoch:",epoch, "Recall:",recall)
-            prev_recall = mAP
+        if mAP > best_map:
+            try:
+                os.makedirs('./models', exist_ok=True)
+                best_model_path = './models/best_model.pth'
+                best_metrics_path = './models/best_model_metrics.npy'
+
+                # Keep the complete model format used by the existing
+                # inference script and periodic checkpoints.
+                torch.save(classifier, best_model_path)
+                np.save(best_metrics_path, np.array([
+                    epoch + 1, mAP, total_mIoU / (batch + 1),
+                    total_mIoU_2d / (batch + 1)
+                ], dtype=np.float32))
+                best_map = mAP
+                print('New best model: epoch %d | mAP: %.6f | saved to %s' % (
+                    epoch + 1, mAP, best_model_path
+                ))
+            except OSError as error:
+                print('File system error saving best model at epoch %d: %s' % (epoch + 1, error))
+            except RuntimeError as error:
+                print('PyTorch error saving best model at epoch %d: %s' % (epoch + 1, error))
+            except Exception as error:
+                print('Unexpected error saving best model at epoch %d: %s' % (epoch + 1, error))
         
         print('Epoch %d evaluation completed: total_loss: %f | mIoU: %f| mIoU_2d: %f | total_eval_time: %f'% (epoch+1, total_loss_eval/(batch+1),total_mIoU/(batch+1),total_mIoU_2d/(batch+1),time.time()-eval_timer))
         
@@ -488,11 +509,22 @@ if __name__ == '__main__':
         np.save('total_loss_validation',total_loss_validation)
         np.save('mAP_save',mAP_save)
 
-        try:
-            if epoch%2==1:
-                torch.save(classifier, './models/epoch_'+str(epoch)+'.pth')
-                np.save('./results/epoch_'+str(epoch)+'.npy',np.array(train_acc_epoch))
-        except Exception as e:
-            print(e)
-            continue  
+        if epoch % 2 == 1:
+            try:
+                # Create output directories on the first checkpoint save.
+                os.makedirs('./models', exist_ok=True)
+                os.makedirs('./results', exist_ok=True)
+
+                model_path = f'./models/epoch_{epoch}.pth'
+                results_path = f'./results/epoch_{epoch}.npy'
+
+                torch.save(classifier, model_path)
+                np.save(results_path, np.array(train_acc_epoch))
+                print(f'Saved checkpoint: {model_path}')
+            except OSError as error:
+                print(f'File system error saving epoch {epoch}: {error}')
+            except RuntimeError as error:
+                print(f'PyTorch error saving epoch {epoch}: {error}')
+            except Exception as error:
+                print(f'Unexpected error saving epoch {epoch}: {error}')
 
